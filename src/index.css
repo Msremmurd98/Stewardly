@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-background text-foreground font-sans antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Lock body scroll while a modal / bottom sheet is open (see BottomSheet.tsx) */
+body[data-scroll-locked="true"] {
+  overflow: hidden;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Safe-area aware page padding used by AppShell */
+.pt-safe {
+  padding-top: calc(var(--safe-top) + 1rem);
+}
+.pb-safe {
+  padding-bottom: calc(var(--safe-bottom) + 0.5rem);
+}
