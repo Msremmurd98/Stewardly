@@ -33,7 +33,7 @@ export default function Login() {
     <div className="flex min-h-[100dvh] flex-col justify-center bg-background px-6 pt-safe pb-safe">
       <div className="mx-auto w-full max-w-sm">
         <h1 className="text-3xl font-extrabold text-foreground">Welcome back</h1>
-        <p className="mt-1 text-sm text-muted">Log in to KED Finance to continue.</p>
+        <p className="mt-1 text-sm text-muted">Log in to Stewardly to continue.</p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4" noValidate>
           <Input
