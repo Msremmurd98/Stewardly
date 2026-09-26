@@ -17,6 +17,7 @@ import MonthDetail from "@/pages/MonthDetail";
 import More from "@/pages/More";
 import Notifications from "@/pages/Notifications";
 import NotFound from "@/pages/NotFound";
+import Broadcast from "@/pages/Broadcast";
 
 function withAuth(element: JSX.Element) {
   return <ProtectedRoute>{element}</ProtectedRoute>;
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
   { path: "/month/:month", element: withAuth(<MonthDetail />) },
   { path: "/compare", element: withAuth(<Compare />) },
   { path: "/more", element: withAuth(<More />) },
+  { path: "/broadcast", element: withAuth(<Broadcast />) },
   { path: "/notifications", element: withAuth(<Notifications />) },
 
   { path: "*", element: <NotFound /> },

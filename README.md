@@ -8,18 +8,18 @@ central Add button).
 This repo currently covers **Phase 1–3** of the build plan in full (auth, schema, RLS,
 fixed 10/30/30/20/10 allocation, income/transactions, the balance engine, dashboard,
 category detail, history, overspending validation), working first passes at Goals,
-Calendar, Compare and Reports (Phase 4–6), and both **PDF/CSV/Excel export** (spec §24)
-and the **scheduled reminder generator** (spec §23, Phase 7). See
-"What's not built yet" below for what's still explicitly outstanding — mainly Web Push
-delivery of those reminders, and a couple of dedicated pgTAP cases.
+Calendar, Compare and Reports (Phase 4–6, including trend charts), **PDF/CSV/Excel
+export** (spec §24), and **scheduled reminders with Web Push delivery** (spec §23,
+Phase 7). See "What's not built yet" below for what's still explicitly outstanding.
 
 ## 1. Set up Supabase
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. In the SQL editor, run the three migrations in order:
+2. In the SQL editor, run the migrations in order:
    - `supabase/migrations/0001_schema.sql`
    - `supabase/migrations/0002_rls.sql`
    - `supabase/migrations/0003_functions.sql`
+   - `supabase/migrations/0004_push_subscriptions.sql`
 
    Or, with the Supabase CLI:
    ```bash
@@ -30,10 +30,11 @@ delivery of those reminders, and a couple of dedicated pgTAP cases.
    ```bash
    supabase functions deploy delete-account
    supabase functions deploy scheduled-reminders
+   supabase functions deploy send-test-push
    ```
-   Then schedule `scheduled-reminders` to run daily — see
-   `supabase/functions/README.md` for the cron setup and an optional shared
-   secret.
+   Then schedule `scheduled-reminders` to run daily, and set up Web Push —
+   see `supabase/functions/README.md` for both (cron cadence, VAPID keys,
+   optional shared secret).
 4. In Project Settings → API, copy your Project URL and anon public key.
 
 ## 2. Configure the app
@@ -41,6 +42,7 @@ delivery of those reminders, and a couple of dedicated pgTAP cases.
 ```bash
 cp .env.example .env
 # fill in VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+# VITE_VAPID_PUBLIC_KEY is only needed if you've set up Web Push (see below)
 ```
 
 ## 3. Install and run
@@ -104,10 +106,10 @@ and must be kept in sync with the SQL by hand — they are not authoritative.
 
 Flagged here explicitly rather than silently stubbed:
 
-- **PWA Web Push delivery.** `scheduled-reminders` (deployed) writes rows into
-  `notifications`, which the in-app Notifications page reads today. Turning those into
-  OS-level push notifications when the app is closed needs a `push-subscribe` function
-  plus a `web-push` send step — see `supabase/functions/README.md`.
+- **Retrying transient push failures.** A push that fails because a subscription
+  expired is cleaned up automatically; a push that fails for any other reason
+  (e.g. a momentary network error) is just logged in that function's response,
+  not retried.
 - Full test coverage of every case in spec §34 — the calculation-only cases are in
   `src/lib/finance.test.ts`, and the RPC-level cases (overspend, edit reversal, delete
   recalculation, closed-month rejection) are in `supabase/tests/financial_rules.test.sql`.
@@ -116,6 +118,8 @@ Flagged here explicitly rather than silently stubbed:
 - Excel/PDF export sheets currently regenerate the Monthly Comparison sheet from only
   the immediately preceding month; comparing two arbitrary months from the export menu
   (rather than just on the in-app Compare page) isn't wired up yet.
+- The PDF export is text/table-based (via `jspdf-autotable`) — the trend charts on the
+  Reports page (Recharts, in-app) aren't rendered as images inside the PDF yet.
 
 ## Design notes
 

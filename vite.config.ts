@@ -8,6 +8,16 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
+      injectManifest: {
+        // App shell only. Financial writes are NEVER queued offline in
+        // Phase 1-3 - see src/sw.ts. Export libraries (ExcelJS/jsPDF) are
+        // dynamically imported at call time (see ExportMenu.tsx) specifically
+        // so they stay out of this precache.
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+      },
       registerType: "autoUpdate",
       includeAssets: ["icons/*.png"],
       manifest: {
@@ -26,22 +36,6 @@ export default defineConfig({
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable",
-          },
-        ],
-      },
-      workbox: {
-        // App shell only. Financial writes are NEVER queued offline in Phase 1-3 -
-        // see src/lib/pwa-notes.md before adding offline mutation support.
-        // Export libraries (ExcelJS/jsPDF) are dynamically imported at call time
-        // (see ExportMenu.tsx) specifically so they stay out of this precache.
-        navigateFallback: "/index.html",
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
-        runtimeCaching: [
-          {
-            urlPattern: ({ request }) =>
-              ["style", "script", "worker", "font", "image"].includes(request.destination),
-            handler: "StaleWhileRevalidate",
-            options: { cacheName: "ked-app-shell" },
           },
         ],
       },

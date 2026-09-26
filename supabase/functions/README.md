@@ -17,7 +17,9 @@
   §23). Idempotent per day per (user, type, subject) so re-running the cron
   doesn't duplicate notifications. Uses the service-role key but never
   accepts a caller-supplied `user_id` — it iterates every account itself and
-  is meant to be invoked only by the scheduler, not by client code.
+  is meant to be invoked only by the scheduler, not by client code. Every
+  notification it writes is also delivered as a **Web Push** to that user's
+  subscribed devices (see below) — a push failure never blocks the in-app row.
 
   ```bash
   supabase functions deploy scheduled-reminders
@@ -29,13 +31,41 @@
   or `supabase functions schedule scheduled-reminders --cron "0 8 * * *"` on
   CLI versions that support it) to run daily.
 
+- **send-test-push** — lets the signed-in user send *themselves* one test
+  push from the Notifications screen's "Send Test" button. Identifies the
+  caller from their own JWT and only ever sends to that caller's own
+  `push_subscriptions` rows.
+
+  ```bash
+  supabase functions deploy send-test-push
+  ```
+
+- **_shared/push.ts** — not a deployable function; the Web Push sending
+  helper (`npm:web-push`) imported by both functions above.
+
+## Web Push setup (spec §23 "PWA push notifications")
+
+1. Generate a VAPID key pair once:
+   ```bash
+   npx web-push generate-vapid-keys
+   ```
+2. Set the private key (and the same public key) as function secrets — these
+   must never reach the browser:
+   ```bash
+   supabase secrets set VAPID_PUBLIC_KEY=<public-key> VAPID_PRIVATE_KEY=<private-key> VAPID_SUBJECT=mailto:you@example.com
+   ```
+3. Put the **public** key only in the frontend's `.env` as
+   `VITE_VAPID_PUBLIC_KEY` (see `.env.example`).
+4. Run the `0004_push_subscriptions.sql` migration (adds the table these
+   functions read from/write to).
+5. Deploy `scheduled-reminders` and `send-test-push`, then open the app's
+   Notifications screen and tap **Turn On**. On iOS this only works after the
+   app has been added to the Home Screen (Add to Home Screen → open from
+   there) — that's a Safari/WebKit requirement, not something this app can
+   route around.
+
 ## Planned for a later phase (not yet implemented)
 
-These are called out explicitly rather than silently stubbed, per the "never
-pretend a feature works" rule in the app spec:
-
-- **PWA Web Push delivery** — `scheduled-reminders` writes in-app
-  `notifications` rows today; a `push-subscribe` function to pair a PWA push
-  subscription with a user, plus a `web-push` send step at the end of
-  `scheduled-reminders`, is the next increment so the same reminders also
-  arrive as OS-level push notifications when the app isn't open.
+- Retrying a push that fails for a reason other than an expired subscription
+  (e.g. a transient network error) — currently it's just logged in the
+  function's response and not retried.

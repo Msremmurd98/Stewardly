@@ -2,6 +2,9 @@
 //
 // Deploy:
 //   supabase functions deploy scheduled-reminders
+// Secrets required for push delivery (skip these and it still writes
+// in-app notification rows, just without a push):
+//   supabase secrets set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT=mailto:you@example.com
 // Schedule (Supabase Dashboard -> Edge Functions -> scheduled-reminders -> Cron,
 // or via `supabase functions schedule` on newer CLI versions):
 //   0 8 * * *   (daily at 08:00 UTC)
@@ -12,8 +15,11 @@
 // It is intentionally idempotent within a day: before inserting a
 // notification it checks whether an equivalent one (same user, type, and
 // day) already exists, so re-running the cron doesn't spam duplicates.
+// Every notification is also delivered as a Web Push to that user's
+// subscribed devices via notifyUser() below (see ../_shared/push.ts).
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
+import { sendPush, type PushSubscriptionRow } from "../_shared/push.ts";
 
 const ADMIN = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
@@ -43,8 +49,35 @@ async function alreadySentToday(userId: string, type: string, titleFragment: str
   return (data?.length ?? 0) > 0;
 }
 
-async function insertNotification(userId: string, type: string, title: string, message: string) {
+/**
+ * Writes the in-app notification row AND best-effort delivers it as a Web
+ * Push to every device the user has subscribed (spec §23 "PWA push
+ * notifications... without requiring a rewrite" - this is that follow-up).
+ * A push failure never blocks the in-app row from being written, and a
+ * missing VAPID config degrades to in-app-only rather than throwing.
+ */
+async function notifyUser(userId: string, type: string, title: string, message: string, url?: string) {
   await ADMIN.from("notifications").insert({ user_id: userId, type, title, message });
+
+  const { data: subs } = await ADMIN
+    .from("push_subscriptions")
+    .select("id, endpoint, p256dh, auth")
+    .eq("user_id", userId);
+  if (!subs || subs.length === 0) return;
+
+  const results = await Promise.all(
+    (subs as PushSubscriptionRow[]).map((sub) => sendPush(sub, { title, message, url }).catch((err) => ({
+      subscriptionId: sub.id,
+      ok: false,
+      expired: false,
+      error: String(err),
+    })))
+  );
+
+  const expiredIds = results.filter((r) => r.expired).map((r) => r.subscriptionId);
+  if (expiredIds.length > 0) {
+    await ADMIN.from("push_subscriptions").delete().in("id", expiredIds);
+  }
 }
 
 // ---------------------------------------------------------
@@ -65,11 +98,12 @@ async function checkExpectedIncome() {
     const day = new Date(row.expected_date).getDate();
     if (day !== tomorrowDay) continue;
     if (await alreadySentToday(row.user_id, "salary_due", row.name)) continue;
-    await insertNotification(
+    await notifyUser(
       row.user_id,
       "salary_due",
       `${row.name} is due tomorrow`,
-      `🔔 Your expected income "${row.name}" is due tomorrow.`
+      `🔔 Your expected income "${row.name}" is due tomorrow.`,
+      "/income"
     );
   }
 }
@@ -113,16 +147,17 @@ async function checkMonthlyAccounts() {
       }
       if (!title || !message) continue;
       if (await alreadySentToday(account.user_id, "budget_warning", LABELS[category])) continue;
-      await insertNotification(account.user_id, "budget_warning", title, message);
+      await notifyUser(account.user_id, "budget_warning", title, message, `/category/${category}`);
     }
 
     if (daysRemaining <= 3 && daysRemaining >= 0) {
       if (await alreadySentToday(account.user_id, "month_closing", monthName(month))) continue;
-      await insertNotification(
+      await notifyUser(
         account.user_id,
         "month_closing",
         `${monthName(month)} closing soon`,
-        `🔔 ${monthName(month)} has ${daysRemaining} day${daysRemaining === 1 ? "" : "s"} remaining.`
+        `🔔 ${monthName(month)} has ${daysRemaining} day${daysRemaining === 1 ? "" : "s"} remaining.`,
+        "/reports"
       );
     }
   }
@@ -140,11 +175,12 @@ async function checkSavingsGoals() {
     const pct = (goal.current_amount / goal.target_amount) * 100;
     if (pct < 80) continue; // only nudge when genuinely close
     if (await alreadySentToday(goal.user_id, "goal_progress", goal.name)) continue;
-    await insertNotification(
+    await notifyUser(
       goal.user_id,
       "goal_progress",
       `Almost there: ${goal.name}`,
-      `🔔 You're ${remaining.toLocaleString()} away from your "${goal.name}" savings target.`
+      `🔔 You're ${remaining.toLocaleString()} away from your "${goal.name}" savings target.`,
+      "/goals"
     );
   }
 }
