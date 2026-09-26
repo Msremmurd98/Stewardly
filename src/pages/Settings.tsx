@@ -227,25 +227,36 @@ function DeleteAccountScreen({ onBack }: { onBack: () => void }) {
   const { signOut } = useAuth();
   const navigate = useNavigate();
 
-  async function handleDelete() {
-    setError(null);
-    setLoading(true);
-    try {
-      // Deleting the auth.users row (via an admin-privileged Edge Function,
-      // never the anon key) cascades to every table below through the
-      // `on delete cascade` foreign keys defined in 0001_schema.sql:
-      // profiles, monthly_accounts, transactions, savings_goals,
-      // savings_goal_contributions, notifications, expected_income.
-      const { error: fnError } = await supabase.functions.invoke("delete-account");
-      if (fnError) throw fnError;
-      await signOut();
-      navigate("/login");
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
+async function handleDelete() {
+  setError(null);
+  setLoading(true);
+
+  try {
+    const { error: fnError } =
+      await supabase.functions.invoke("delete-account");
+
+    if (fnError) {
+      console.error("Delete account function error:", fnError);
+      throw fnError;
     }
+
+    // Account is already deleted on Supabase.
+    // Clear the local session, but don't let a signOut error stop navigation.
+    try {
+      await signOut();
+    } catch (signOutError) {
+      console.warn("Sign out after account deletion:", signOutError);
+    }
+
+    // Always send the user to login after successful deletion.
+    navigate("/login", { replace: true });
+  } catch (err) {
+    console.error("Account deletion failed:", err);
+    setError((err as Error).message || "Failed to delete account.");
+  } finally {
+    setLoading(false);
   }
+}
 
   return (
     <AppShell>
