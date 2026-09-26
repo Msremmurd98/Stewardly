@@ -232,28 +232,29 @@ async function handleDelete() {
   setLoading(true);
 
   try {
-    const { error: fnError } =
-      await supabase.functions.invoke("delete-account");
+    // Start the deletion request.
+    const deletePromise = supabase.functions.invoke("delete-account");
 
-    if (fnError) {
-      console.error("Delete account function error:", fnError);
-      throw fnError;
-    }
-
-    // Account is already deleted on Supabase.
-    // Clear the local session, but don't let a signOut error stop navigation.
+    // Immediately clear the local session so the user is no longer
+    // treated as logged in.
     try {
       await signOut();
     } catch (signOutError) {
-      console.warn("Sign out after account deletion:", signOutError);
+      console.warn("Sign out:", signOutError);
     }
 
-    // Always send the user to login after successful deletion.
+    // Go to Login immediately.
     navigate("/login", { replace: true });
+
+    // Let the deletion request finish in the background.
+    const { error: fnError } = await deletePromise;
+
+    if (fnError) {
+      console.error("Background account deletion error:", fnError);
+    }
   } catch (err) {
     console.error("Account deletion failed:", err);
     setError((err as Error).message || "Failed to delete account.");
-  } finally {
     setLoading(false);
   }
 }
