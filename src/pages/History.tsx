@@ -10,7 +10,7 @@ import { useMonthlyAccount } from "@/hooks/useMonthlyAccount";
 import { useTransactions } from "@/hooks/useTransactions";
 import { CATEGORY_LABELS } from "@/lib/allocation";
 import type { Transaction, TransactionCategory } from "@/types/database";
-import { Search } from "lucide-react";
+import { CalendarDays, Search, X } from "lucide-react";
 
 const CATEGORY_FILTER_OPTIONS = [
   { value: "all", label: "All Categories" },
@@ -59,7 +59,31 @@ export default function History() {
         />
         <div className="grid grid-cols-2 gap-3">
           <Select value={categoryFilter} onValueChange={setCategoryFilter} options={CATEGORY_FILTER_OPTIONS} />
-          <Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} aria-label="Filter by date" />
+         <div className="relative">
+  <CalendarDays
+    className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted"
+    aria-hidden="true"
+  />
+
+  <Input
+    type="date"
+    value={dateFilter}
+    onChange={(e) => setDateFilter(e.target.value)}
+    aria-label="Filter by date"
+    className="pl-9 pr-9"
+  />
+
+  {dateFilter && (
+    <button
+      type="button"
+      onClick={() => setDateFilter("")}
+      aria-label="Clear date filter"
+      className="absolute right-2 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted transition-colors hover:bg-muted/10 active:bg-muted/20"
+    >
+      <X className="h-4 w-4" />
+    </button>
+  )}
+</div>
         </div>
       </div>
 
