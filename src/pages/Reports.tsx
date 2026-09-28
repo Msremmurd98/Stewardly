@@ -58,7 +58,12 @@ export default function Reports() {
       </section>
 
           <section className="mt-4">
-        <TrendChart accounts={allAccounts ?? []} currency={currency} />
+       <TrendChart
+  accounts={allAccounts ?? []}
+  currency={currency}
+  selectedYear={year}
+  selectedMonth={month}
+/>
       </section>
 
 
