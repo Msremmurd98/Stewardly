@@ -18,6 +18,7 @@ import More from "@/pages/More";
 import Notifications from "@/pages/Notifications";
 import NotFound from "@/pages/NotFound";
 import Broadcast from "@/pages/Broadcast";
+import { eventRoutes } from "@/router.events";
 
 function withAuth(element: JSX.Element) {
   return <ProtectedRoute>{element}</ProtectedRoute>;
@@ -43,6 +44,7 @@ export const router = createBrowserRouter([
   { path: "/more", element: withAuth(<More />) },
   { path: "/broadcast", element: withAuth(<Broadcast />) },
   { path: "/notifications", element: withAuth(<Notifications />) },
+...eventRoutes,
 
-  { path: "*", element: <NotFound /> },
+{ path: "*", element: <NotFound /> },
 ]);

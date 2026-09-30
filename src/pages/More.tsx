@@ -3,6 +3,7 @@ import {
   Settings as SettingsIcon,
   Target,
   Calendar as CalendarIcon,
+  CalendarDays,
   GitCompare,
   Bell,
   Megaphone,
@@ -38,6 +39,12 @@ const ITEMS = [
     icon: Bell,
     desc: "Reminders and budget alerts",
   },
+  {
+  to: "/events",
+  label: "Events",
+  icon: CalendarDays,
+  desc: "Browse and register for events",
+},
   {
     to: "/settings",
     label: "Settings",
