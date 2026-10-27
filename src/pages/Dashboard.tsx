@@ -10,6 +10,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useMonthScope } from "@/hooks/useMonthScope";
 import { budgetWarningMessage } from "@/lib/finance";
 import type { AllocatableCategory } from "@/lib/allocation";
+import { BlobatarAvatar } from "@/components/ui/blobataravatar";
 
 const CATEGORIES: AllocatableCategory[] = [
   "tithe",
@@ -129,7 +130,15 @@ export default function Dashboard() {
   return (
     <AppShell>
       <header className="dashboard-stagger dashboard-delay-1 flex items-center justify-between pt-2">
-        <div>
+         <div className="flex min-w-0 items-center gap-1">
+      <BlobatarAvatar
+        name= {profile?.full_name || user?.email || "KED"}
+        size={56}
+        animate="always"
+      />
+          <div className="min-w-0">
+            
+
           <p className="text-sm text-muted">
             Hi {firstName},{" "}
             <span className="font-medium text-foreground">
@@ -140,6 +149,7 @@ export default function Dashboard() {
           <p className="text-sm text-muted">
             Your Account Summary
           </p>
+          </div>
         </div>
 
         <MonthFilterSelector />

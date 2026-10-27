@@ -20,6 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useProfile, useUpdateProfile, useUpdatePassword } from "@/hooks/useProfile";
 import { CURRENCIES } from "@/lib/currency";
 import { supabase } from "@/lib/supabase";
+import { BlobatarAvatar } from "@/components/ui/blobataravatar";
 
 type View = "menu" | "profile" | "password" | "currency" | "delete";
 
@@ -35,12 +36,29 @@ export default function Settings() {
   if (view === "delete") return <DeleteAccountScreen onBack={() => setView("menu")} />;
 
   return (
-    <AppShell>
-      <header className="pt-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">Settings</p>
-        <h1 className="mt-2 text-2xl font-extrabold text-foreground">{profile?.full_name || "Your Account"}</h1>
-        <p className="text-sm text-muted">{profile?.email ?? user?.email}</p>
-      </header>
+ 
+<AppShell>
+  <header className="flex items-center justify-between pt-2">
+    <div className="min-w-0">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+        Settings
+      </p>
+      <h1 className="mt-2 text-2xl font-extrabold text-foreground">
+        {profile?.full_name || "Your Account"}
+      </h1>
+      <p className="text-sm text-muted">
+        {profile?.email ?? user?.email}
+      </p>
+    </div>
+
+    <BlobatarAvatar
+      name={profile?.full_name || user?.email || "KED"}
+      size={72}
+      animate="always"
+    />
+  </header>
+
+
 
       <section className="mt-6 divide-y divide-border rounded-2xl bg-surface shadow-card">
         <MenuRow icon={User} label="Manage Profile" onClick={() => setView("profile")} />
