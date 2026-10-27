@@ -2,28 +2,24 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
-import { MonthSelector } from "@/components/dashboard/MonthSelector";
+import { MonthFilterSelector } from "@/components/dashboard/MonthFilterSelector";
 import { TransactionListItem } from "@/components/transactions/TransactionListItem";
 import { TransactionDetailModal } from "@/components/transactions/TransactionDetailModal";
 import { AddTransactionModal } from "@/components/transactions/AddTransactionModal";
 import { useProfile } from "@/hooks/useProfile";
-import { useMonthlyAccount } from "@/hooks/useMonthlyAccount";
-import { useTransactions } from "@/hooks/useTransactions";
+import { useMonthScope } from "@/hooks/useMonthScope";
 import { formatCurrency } from "@/lib/currency";
 import type { Transaction } from "@/types/database";
 
 export default function Income() {
   const navigate = useNavigate();
-  const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
   const [selected, setSelected] = useState<Transaction | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
   const { data: profile } = useProfile();
   const currency = profile?.currency ?? "NGN";
-  const { data: account, isLoading } = useMonthlyAccount(year, month);
-  const { data: transactions } = useTransactions(account?.id);
+  const { account, transactions, isLoading, isAll, periodFor, writePeriod } = useMonthScope();
+  const selectedPeriod = periodFor(selected);
   const incomeTransactions = (transactions ?? []).filter((t) => t.category === "income");
 
   return (
@@ -33,7 +29,7 @@ export default function Income() {
           <ArrowLeft className="h-4 w-4" />
         </button>
         <h1 className="text-lg font-bold text-foreground">Income</h1>
-        <MonthSelector year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
+        <MonthFilterSelector />
       </header>
 
       {isLoading ? (
@@ -42,7 +38,7 @@ export default function Income() {
         <section className="mt-6 rounded-2xl bg-category-income p-6 text-category-income-fg shadow-card">
           <p className="text-xs font-semibold uppercase tracking-wide opacity-70">Total Income</p>
           <p className="mt-1 text-3xl font-extrabold">{formatCurrency(account?.total_income ?? 0, currency)}</p>
-          <p className="mt-1 text-xs opacity-70">{incomeTransactions.length} transactions this month</p>
+          <p className="mt-1 text-xs opacity-70">{incomeTransactions.length} transactions {isAll ? "across all months" : "this month"}</p>
         </section>
       )}
 
@@ -58,7 +54,7 @@ export default function Income() {
 
       <section className="mt-3 space-y-2">
         {incomeTransactions.length === 0 && (
-          <p className="py-8 text-center text-sm text-muted">No income recorded this month.</p>
+          <p className="py-8 text-center text-sm text-muted">{isAll ? "No income recorded yet." : "No income recorded this month."}</p>
         )}
         {incomeTransactions.map((t) => (
           <TransactionListItem key={t.id} transaction={t} currency={currency} onClick={() => setSelected(t)} />
@@ -68,11 +64,11 @@ export default function Income() {
       <TransactionDetailModal
         transaction={selected}
         onOpenChange={(open) => !open && setSelected(null)}
-        year={year}
-        month={month}
-        monthClosed={account?.status === "CLOSED"}
+        year={selectedPeriod.year}
+        month={selectedPeriod.month}
+        monthClosed={selectedPeriod.closed}
       />
-      <AddTransactionModal open={addOpen} onOpenChange={setAddOpen} year={year} month={month} defaultTab="income" />
+      <AddTransactionModal open={addOpen} onOpenChange={setAddOpen} year={writePeriod.year} month={writePeriod.month} defaultTab="income" />
     </AppShell>
   );
 }

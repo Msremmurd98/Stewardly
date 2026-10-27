@@ -1,13 +1,12 @@
 import { useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { MonthSelector } from "@/components/dashboard/MonthSelector";
+import { MonthFilterSelector } from "@/components/dashboard/MonthFilterSelector";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { TransactionListItem } from "@/components/transactions/TransactionListItem";
 import { TransactionDetailModal } from "@/components/transactions/TransactionDetailModal";
 import { useProfile } from "@/hooks/useProfile";
-import { useMonthlyAccount } from "@/hooks/useMonthlyAccount";
-import { useTransactions } from "@/hooks/useTransactions";
+import { useMonthScope } from "@/hooks/useMonthScope";
 import { CATEGORY_LABELS } from "@/lib/allocation";
 import type { Transaction, TransactionCategory } from "@/types/database";
 import { CalendarDays, Search, X } from "lucide-react";
@@ -21,9 +20,6 @@ const CATEGORY_FILTER_OPTIONS = [
 ];
 
 export default function History() {
-  const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState("");
   const [search, setSearch] = useState("");
@@ -31,8 +27,8 @@ export default function History() {
 
   const { data: profile } = useProfile();
   const currency = profile?.currency ?? "NGN";
-  const { data: account } = useMonthlyAccount(year, month);
-  const { data: transactions, isLoading } = useTransactions(account?.id);
+  const { transactions, transactionsLoading: isLoading, periodFor } = useMonthScope();
+  const selectedPeriod = periodFor(selected);
 
   const filtered = useMemo(() => {
     return (transactions ?? []).filter((t) => {
@@ -47,7 +43,7 @@ export default function History() {
     <AppShell>
       <header className="flex items-center justify-between pt-2">
         <h1 className="text-2xl font-extrabold text-foreground">History</h1>
-        <MonthSelector year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
+        <MonthFilterSelector />
       </header>
 
       <div className="mt-4 space-y-3">
@@ -100,9 +96,9 @@ export default function History() {
       <TransactionDetailModal
         transaction={selected}
         onOpenChange={(open) => !open && setSelected(null)}
-        year={year}
-        month={month}
-        monthClosed={account?.status === "CLOSED"}
+        year={selectedPeriod.year}
+        month={selectedPeriod.month}
+        monthClosed={selectedPeriod.closed}
       />
     </AppShell>
   );

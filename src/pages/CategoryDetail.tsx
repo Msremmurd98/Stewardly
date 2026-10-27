@@ -2,14 +2,13 @@ import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Plus } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
-import { MonthSelector } from "@/components/dashboard/MonthSelector";
+import { MonthFilterSelector } from "@/components/dashboard/MonthFilterSelector";
 import { CircularProgress } from "@/components/dashboard/CircularProgress";
 import { TransactionListItem } from "@/components/transactions/TransactionListItem";
 import { TransactionDetailModal } from "@/components/transactions/TransactionDetailModal";
 import { AddTransactionModal } from "@/components/transactions/AddTransactionModal";
 import { useProfile } from "@/hooks/useProfile";
-import { useMonthlyAccount } from "@/hooks/useMonthlyAccount";
-import { useTransactions } from "@/hooks/useTransactions";
+import { useMonthScope } from "@/hooks/useMonthScope";
 import { formatCurrency } from "@/lib/currency";
 import { calculateUsagePercentage } from "@/lib/finance";
 import { CATEGORY_LABELS, type AllocatableCategory } from "@/lib/allocation";
@@ -19,16 +18,13 @@ import BalanceGauge from "@/components/dashboard/BalanceGauge";
 export default function CategoryDetail() {
   const { category } = useParams<{ category: AllocatableCategory }>();
   const navigate = useNavigate();
-  const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
   const [selected, setSelected] = useState<Transaction | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
   const { data: profile } = useProfile();
   const currency = profile?.currency ?? "NGN";
-  const { data: account, isLoading } = useMonthlyAccount(year, month);
-  const { data: transactions } = useTransactions(account?.id);
+  const { account, transactions, isLoading, periodFor, writePeriod } = useMonthScope();
+  const selectedPeriod = periodFor(selected);
 
   const categoryTransactions = useMemo(
     () => (transactions ?? []).filter((t) => t.category === category),
@@ -53,7 +49,7 @@ export default function CategoryDetail() {
           <ArrowLeft className="h-4 w-4" />
         </button>
         <h1 className="text-lg font-bold text-foreground">{CATEGORY_LABELS[category]}</h1>
-        <MonthSelector year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
+        <MonthFilterSelector />
       </header>
 
       {isLoading ? (
@@ -101,15 +97,15 @@ export default function CategoryDetail() {
       <TransactionDetailModal
         transaction={selected}
         onOpenChange={(open) => !open && setSelected(null)}
-        year={year}
-        month={month}
-        monthClosed={account?.status === "CLOSED"}
+        year={selectedPeriod.year}
+        month={selectedPeriod.month}
+        monthClosed={selectedPeriod.closed}
       />
       <AddTransactionModal
         open={addOpen}
         onOpenChange={setAddOpen}
-        year={year}
-        month={month}
+        year={writePeriod.year}
+        month={writePeriod.month}
         defaultTab="category"
         defaultCategory={category}
       />

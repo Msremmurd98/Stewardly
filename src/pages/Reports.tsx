@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { MonthSelector } from "@/components/dashboard/MonthSelector";
+import { MonthFilterSelector } from "@/components/dashboard/MonthFilterSelector";
+import { useReportMonth } from "@/lib/monthFilter";
 import { Button } from "@/components/ui/button";
 import { ExportMenu } from "@/components/reports/ExportMenu";
 import { TrendChart } from "@/components/reports/TrendChart";
@@ -14,9 +15,8 @@ import { CATEGORY_LABELS, type AllocatableCategory } from "@/lib/allocation";
 const CATEGORIES: AllocatableCategory[] = ["tithe", "investment", "giving", "expense", "savings"];
 
 export default function Reports() {
-  const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
+  // Follows the app-wide month selection; while that is "All", Reports shows the current month.
+  const { year, month } = useReportMonth();
   const [confirmClose, setConfirmClose] = useState(false);
   const [confirmReopen, setConfirmReopen] = useState(false);
 
@@ -41,7 +41,7 @@ export default function Reports() {
     <AppShell>
       <header className="flex items-center justify-between pt-2">
         <h1 className="text-2xl font-extrabold text-foreground">Reports</h1>
-        <MonthSelector year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
+        <MonthFilterSelector allowAll={false} />
       </header>
 
       <section className="mt-6 rounded-2xl bg-surface p-5 shadow-card">

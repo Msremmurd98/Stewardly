@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { MonthSelector } from "@/components/dashboard/MonthSelector";
+import { MonthFilterSelector } from "@/components/dashboard/MonthFilterSelector";
 import { BalanceSummary } from "@/components/dashboard/BalanceSummary";
 import { IncomeCard } from "@/components/dashboard/IncomeCard";
 import { CategoryCard } from "@/components/dashboard/CategoryCard";
 import { AddTransactionModal } from "@/components/transactions/AddTransactionModal";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
-import { useMonthlyAccount } from "@/hooks/useMonthlyAccount";
-import { useTransactions } from "@/hooks/useTransactions";
+import { useMonthScope } from "@/hooks/useMonthScope";
 import { budgetWarningMessage } from "@/lib/finance";
 import type { AllocatableCategory } from "@/lib/allocation";
 
@@ -23,10 +22,6 @@ const CATEGORIES: AllocatableCategory[] = [
 type WarningPhase = "visible" | "exiting" | "hidden";
 
 export default function Dashboard() {
-  const now = new Date();
-
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
   const [addOpen, setAddOpen] = useState(false);
 
   const [warningPhase, setWarningPhase] =
@@ -34,11 +29,15 @@ export default function Dashboard() {
 
   const { user } = useAuth();
   const { data: profile } = useProfile();
-  const { data: account, isLoading } = useMonthlyAccount(
+  const {
+    account,
+    transactions,
+    isLoading,
+    isAll,
     year,
     month,
-  );
-  const { data: transactions } = useTransactions(account?.id);
+    writePeriod,
+  } = useMonthScope();
 
   const currency = profile?.currency ?? "NGN";
 
@@ -60,7 +59,8 @@ export default function Dashboard() {
   }, [transactions]);
 
   const warnings = useMemo(() => {
-    if (!account) return [];
+    // Budget warnings are per-month, so they are not shown on "All".
+    if (!account || isAll) return [];
 
     return CATEGORIES.map((c) => {
       const allocated =
@@ -85,7 +85,7 @@ export default function Dashboard() {
       category: string;
       message: string;
     }[];
-  }, [account]);
+  }, [account, isAll]);
 
   /*
    * Warning timing:
@@ -124,7 +124,7 @@ export default function Dashboard() {
       window.clearTimeout(exitTimer);
       window.clearTimeout(hideTimer);
     };
-  }, [year, month, warnings.length]);
+  }, [year, month, isAll, warnings.length]);
 
   return (
     <AppShell>
@@ -142,14 +142,7 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <MonthSelector
-          year={year}
-          month={month}
-          onChange={(y, m) => {
-            setYear(y);
-            setMonth(m);
-          }}
-        />
+        <MonthFilterSelector />
       </header>
 
       {isLoading || !account ? (
@@ -249,8 +242,8 @@ export default function Dashboard() {
         <AddTransactionModal
           open={addOpen}
           onOpenChange={setAddOpen}
-          year={year}
-          month={month}
+          year={writePeriod.year}
+          month={writePeriod.month}
         />
       )}
     </AppShell>

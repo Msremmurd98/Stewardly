@@ -8,6 +8,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { formatCurrency } from "@/lib/currency";
 import { CATEGORY_LABELS } from "@/lib/allocation";
 import type { Transaction } from "@/types/database";
+import { isDateInMonth, monthBounds, monthLabel } from "@/lib/monthDates";
 
 interface TransactionDetailModalProps {
   transaction: Transaction | null;
@@ -43,6 +44,11 @@ export function TransactionDetailModal({ transaction, onOpenChange, year, month,
 
   async function handleSave() {
     setError(null);
+    // The date must stay inside this transaction's month (an unchanged legacy date is left alone).
+    if (date !== transaction!.transaction_date && !isDateInMonth(date, year, month)) {
+      setError(`Pick a date within ${monthLabel(year, month)}.`);
+      return;
+    }
     try {
       await editTxn.mutateAsync({ id: transaction!.id, amount: Number(amount), date, narration });
       onOpenChange(false);
@@ -107,7 +113,14 @@ export function TransactionDetailModal({ transaction, onOpenChange, year, month,
       {mode === "edit" && (
         <div className="space-y-4">
           <Input label="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          <Input type="date" label="Date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <Input
+            type="date"
+            label="Date"
+            min={monthBounds(year, month).min}
+            max={monthBounds(year, month).max}
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
           <Input label="Narration" value={narration} onChange={(e) => setNarration(e.target.value)} />
           {error && <p className="text-sm text-danger">{error}</p>}
           <div className="flex gap-2">

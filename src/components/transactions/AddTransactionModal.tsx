@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as Tabs from "@radix-ui/react-tabs";
-import { format } from "date-fns";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import { useCreateIncomeTransaction, useCreateCategoryTransaction } from "@/hook
 import { useProfile } from "@/hooks/useProfile";
 import { CATEGORY_LABELS } from "@/lib/allocation";
 import { cn } from "@/lib/utils";
+import { defaultDateFor, isDateInMonth, monthBounds, monthLabel } from "@/lib/monthDates";
 
 interface AddTransactionModalProps {
   open: boolean;
@@ -45,21 +45,36 @@ export function AddTransactionModal({
 
   const incomeForm = useForm<IncomeFormValues>({
     resolver: zodResolver(incomeFormSchema),
-    defaultValues: { amount: "", date: format(new Date(), "yyyy-MM-dd"), narration: "" },
+    defaultValues: { amount: "", date: defaultDateFor(year, month), narration: "" },
   });
   const categoryForm = useForm<CategoryFormValues>({
     resolver: zodResolver(categoryFormSchema),
     defaultValues: {
       category: defaultCategory,
       amount: "",
-      date: format(new Date(), "yyyy-MM-dd"),
+      date: defaultDateFor(year, month),
       narration: "",
     },
   });
 
+  // Keep the date inside the month being edited: reset it whenever the sheet opens or the month changes.
+  const bounds = monthBounds(year, month);
+  useEffect(() => {
+    const d = defaultDateFor(year, month);
+    incomeForm.setValue("date", d);
+    categoryForm.setValue("date", d);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, year, month]);
+
+  const dateError = `Pick a date within ${monthLabel(year, month)}.`;
+
   const watchedIncomeAmount = Number(incomeForm.watch("amount") || 0);
 
   async function submitIncome(values: IncomeFormValues) {
+    if (!isDateInMonth(values.date, year, month)) {
+      incomeForm.setError("date", { message: dateError });
+      return;
+    }
     try {
       await createIncome.mutateAsync({
         amount: Number(values.amount),
@@ -68,7 +83,7 @@ export function AddTransactionModal({
         year,
         month,
       });
-      incomeForm.reset({ amount: "", date: format(new Date(), "yyyy-MM-dd"), narration: "" });
+      incomeForm.reset({ amount: "", date: defaultDateFor(year, month), narration: "" });
       onOpenChange(false);
     } catch (err) {
       incomeForm.setError("amount", { message: (err as Error).message });
@@ -76,6 +91,10 @@ export function AddTransactionModal({
   }
 
   async function submitCategory(values: CategoryFormValues) {
+    if (!isDateInMonth(values.date, year, month)) {
+      categoryForm.setError("date", { message: dateError });
+      return;
+    }
     try {
       await createCategory.mutateAsync({
         category: values.category,
@@ -85,7 +104,7 @@ export function AddTransactionModal({
         year,
         month,
       });
-      categoryForm.reset({ category: values.category, amount: "", date: format(new Date(), "yyyy-MM-dd"), narration: "" });
+      categoryForm.reset({ category: values.category, amount: "", date: defaultDateFor(year, month), narration: "" });
       onOpenChange(false);
     } catch (err) {
       // Server rejects with "Insufficient X allocation. Available: Y" on overspend (spec §9)
@@ -136,7 +155,7 @@ export function AddTransactionModal({
               control={incomeForm.control}
               name="date"
               render={({ field, fieldState }) => (
-                <Input type="date" label="Date" error={fieldState.error?.message} {...field} />
+                <Input type="date" label="Date" min={bounds.min} max={bounds.max} error={fieldState.error?.message} {...field} />
               )}
             />
             <Controller
@@ -179,7 +198,7 @@ export function AddTransactionModal({
               control={categoryForm.control}
               name="date"
               render={({ field, fieldState }) => (
-                <Input type="date" label="Date" error={fieldState.error?.message} {...field} />
+                <Input type="date" label="Date" min={bounds.min} max={bounds.max} error={fieldState.error?.message} {...field} />
               )}
             />
             <Controller
