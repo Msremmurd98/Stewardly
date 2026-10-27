@@ -4,7 +4,7 @@ import "blobatar/motion.css";
 
 type BlobatarAvatarProps = {
   name: string;
-  animate?: "hover" | "always" | "none";
+  animate?: "hover" | "always";
   size?: number;
 };
 
